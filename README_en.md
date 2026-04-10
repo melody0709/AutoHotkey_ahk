@@ -24,15 +24,15 @@ This is a feature-rich, system-enhancing AutoHotkey v2 script designed for **gam
     *   **Single Click:** SMT Disabled (`0`), Core Parking set to `50%`.
     *   **Double Click:** SMT Enabled (`2`), Core Parking set to `25%`.
 *   **`Ctrl + Alt + Numpad2`**: PCIe Link State Power Management.
-    *   **Single Click:** Turn off all PCIe power savings (`0`).
-    *   **Double Click:** Enable Maximum PCIe power savings (`2`).
+    *   **Single Click:** Enable Maximum PCIe power savings (`2`).
+    *   **Double Click:** Turn off all PCIe power savings (`0`).
 *   **`Ctrl + Alt + Numpad3`**: Toggle AMD ZenStates **C6 Sleep State**.
     *   **Single Click:** Enable C6 State (Calls `ZenStates_C6_Enable.ahk`).
     *   **Double Click:** Disable C6 State (Calls `ZenStates_C6_Disabled.ahk`).
 *   **`Ctrl + Alt + Numpad4`**: **Set Max CPU Frequency**. A popup UI prompts you to enter the max frequency in MHz (Enter `0` for default unconstrained frequency).
 *   **`Ctrl + Alt + Numpad5`**: Processor Boost Mode.
-    *   **Single Click:** Disable Boost (`0`).
-    *   **Double Click:** Enable Aggressive Boost (`2`).
+    *   **Single Click:** Enable Aggressive Boost (`2`).
+    *   **Double Click:** Disable Boost (`0`).
 
 ### NVIDIA GPU Management
 *(Requires an NVIDIA GPU and `nvidia-smi.exe` in PATH)*
@@ -40,7 +40,7 @@ This is a feature-rich, system-enhancing AutoHotkey v2 script designed for **gam
 *   **`Ctrl + Alt + Numpad7`**: Enable GPU Power Saving / Frequency Caps.
     *   Lock Memory Clock (LMC): 400 - 5002 MHz
     *   Lock Graphics Clock (LGC): Max 2100 MHz
-    *   Power Limit (PL): Script set to `250` (or `150W` visual cap).
+    *   Power Limit (PL): `250W`
 *   **`Ctrl + Alt + Numpad9`**: Uncap Performance. Removes LMC/RGC frequency limits and restores Power Limit to 325W.
 
 ### Windows, Tray & Convenience Controls
