@@ -1,0 +1,127 @@
+# Windows Advanced Power & Productivity Hotkeys (AutoHotkey v2)
+
+[![English Version](#english-version)](README.md#english-version)
+<br>默认中文版请往下看。
+
+---
+
+# 💻 高级电源与生产力系统快捷键 (基于 AutoHotkey v2)
+
+这是一个功能丰富的系统增强型 AutoHotkey v2 脚本，用于**游戏/办公性能控制、系统管理以及窗口行为优化**。只需几个键盘快捷键，即可轻松调节从 CPU 电源策略、GPU 功耗锁/频率锁到系统省电模式及窗口的日常管理。
+
+## 🌟 核心功能
+
+*   🚀 **CPU 性能调整与电源计划热键：** 快速控制处理器 Boost 模式，多线程 (SMT)，系统停核策略，以及最高主频限制。
+*   🔋 **一键切换电源计划：** 从平衡模式、最大节能到极客版高性能/定制电源策略。
+*   🎮 **NVIDIA 显卡功耗/频率锁定热键：** 限制或放开 `nvidia-smi` 所配置的显卡显存频率 (LMC) 和核心功耗，快速散热或全马力输出。
+*   🖥️ **快捷窗口与任务栏管理：** 无缝支持活动窗口的一键最小化（Win11 自带样式）与恢复、缩小到系统托盘 (需配合第三方工具)、一键隐藏任务栏等。
+*   🛡️ **桌面小贴心功能：** 拦截 Windows 桌面上 `Ctrl + 滚轮`，防止意外误触改变桌面图标大小。
+*   ⚡ **AMD ZenStates 支持：** 通过快捷键单/双击切换 CPU C6 深度睡眠状态 (需依赖自带的 lib 脚本)。
+
+## ⌨️ 快捷键指南
+
+### 系统与电源调整
+*(注意：电源与CPU调度调整需要以管理员身份运行 AHK)*
+
+*   **`Ctrl + Alt + Numpad1`** (数字键盘 1):
+    *   **单击:** 切换到 **Balanced (平衡)** 电源计划。
+    *   **双击:** 切换到 **Hydra (自定义高性能)** 电源计划。
+*   **`Ctrl + Alt + Numpad6`**: 切换到 **Power Saver (省电)** 电源计划。
+*   **`Ctrl + Alt + Numpad0`** (数字键盘 0): 联合调节 SMT (超线程) 与 Core Parking (核心调度)。
+    *   **单击:** SMT 设置为 `0` (关闭)，Core Parking 设置为 `50%`。
+    *   **双击:** SMT 设置为 `2` (开启)，Core Parking 设置为 `25%`。
+*   **`Ctrl + Alt + Numpad2`** (数字键盘 2): PCIe 链路状态电源管理。
+    *   **单击:** 关闭所有 PCIe 节电设置 (`0`)。
+    *   **双击:** 启用最大化 PCIe 节电模式 (`2`)。
+*   **`Ctrl + Alt + Numpad3`** (数字键盘 3): 切换 AMD ZenStates CPU **C6 睡眠状态**。
+    *   **单击:** 启用 C6 状态 (调用 `ZenStates_C6_Enable.ahk`)。
+    *   **双击:** 禁用 C6 状态 (调用 `ZenStates_C6_Disabled.ahk`)。
+*   **`Ctrl + Alt + Numpad4`** (数字键盘 4): **限制 CPU 最大频率**。弹出窗口输入期望的最大频率 (MHz)，输入 0 为不限制。
+*   **`Ctrl + Alt + Numpad5`** (数字键盘 5): CPU Boost (睿频) 模式。
+    *   **单击:** 关闭处理器 Boost 模式 (`0`)。
+    *   **双击:** 开启处理器 Aggressive (激进) Boost 模式 (`2`)。
+
+### NVIDIA GPU 管理
+*(需要 N卡 及 nvidia-smi.exe 可用)*
+
+*   **`Ctrl + Alt + Numpad7`**: 开启显卡省电/频率限制模式。
+    *   显存时钟 (LMC): 400 - 5002 MHz
+    *   核心时钟 (LGC): 最高 2100 MHz
+    *   功耗墙 (PL): 150W (实际脚本设为 `250` 或具体配置)
+*   **`Ctrl + Alt + Numpad9`**: 恢复满血性能。移除 LMC / RGC 频率限制并将功耗墙 (PL) 恢复为 325W。
+
+### 窗口、托盘与便捷控制
+*(部分功能需配合第三方工具)*
+
+*   **`Ctrl + Esc`**: 发送 `Win+Ctrl+F11`。用于搭配 `buttery-taskbar.exe` 一键隐藏/显示任务栏。
+*   **`Shift + ~` (反引号)**: 最小化当前活动窗口（记录历史）。
+*   **`Shift + Q`**: 从最小化历史记录中恢复上一个窗口到前台。
+*   **`Alt + ~` (反引号)**: 最小化当前窗口到**系统托盘**（需配合 `RBTray.exe` 发送 `Ctrl+Alt+Down`）。
+*   **`Alt + Q`**: 从托盘还原窗口（需配合 `RBTray.exe` 发送 `Ctrl+Alt+Up`）。
+*   **`Alt + F`**: 映射为 `F11` (全屏)，仅当活动窗口 **不为** `scrcpy` (投屏工具) 时生效。
+
+### 桌面误触拦截
+*   当你位于 Windows 桌面主界面时，按下 **`Ctrl + 鼠标滚轮上下`** 会被脚本自动拦截，防止破坏桌面图标布局。(在网页等其他软件中仍可正常缩放)。
+
+---
+<br>
+
+<h1 id="english-version">🇬🇧 English Version</h1>
+
+# Windows Advanced Power & Productivity Hotkeys (AutoHotkey v2)
+
+This is a feature-rich, system-enhancing AutoHotkey v2 script designed for **gaming/office performance control, system management, and window behavior optimization**. With just a few keyboard shortcuts, you can easily control CPU power policies, GPU power limits/clocks, system power-saving modes, and daily window management.
+
+## 🌟 Core Features
+
+*   🚀 **CPU Performance & Power Plan Hotkeys:** Quick controls for Processor Boost Mode, SMT (Simultaneous Multithreading), Core Parking, and Maximum Processor Frequency.
+*   🔋 **One-Click Power Plan Switch:** Seamlessly switch between Balanced, Power Saver, and Custom/High-Performance modes (like Hydra).
+*   🎮 **NVIDIA GPU Power/Clock Lock:** Toggle `nvidia-smi` limits to quickly restrict memory/core clocks for lower thermals, or uncap them for maximum gaming performance.
+*   🖥️ **Quick Window & Taskbar Management:** Includes native Windows 11 style window minimization with a history stack to restore them, minimize-to-tray capability (requires 3rd-party tools), and quick taskbar hiding.
+*   🛡️ **Desktop Protection:** Intercepts `Ctrl + Mouse Wheel` while hovering over the Windows Desktop to prevent accidental icon resizing.
+*   ⚡ **AMD ZenStates Support:** Toggle deep CPU C6 Sleep States with single/double clicks (relies on included local script libs).
+
+## ⌨️ Shortcut Guide
+
+### System & Power Adjustments
+*(Note: Most power and CPU adjustments require running the script as Administrator)*
+
+*   **`Ctrl + Alt + Numpad1`**:
+    *   **Single Click:** Switch to the **Balanced** Power Plan.
+    *   **Double Click:** Switch to the **Hydra** (High Performance) Power Plan.
+*   **`Ctrl + Alt + Numpad6`**: Switch to the **Power Saver** Power Plan.
+*   **`Ctrl + Alt + Numpad0`**: Combined SMT & Core Parking toggle.
+    *   **Single Click:** SMT Disabled (`0`), Core Parking set to `50%`.
+    *   **Double Click:** SMT Enabled (`2`), Core Parking set to `25%`.
+*   **`Ctrl + Alt + Numpad2`**: PCIe Link State Power Management.
+    *   **Single Click:** Turn off all PCIe power savings (`0`).
+    *   **Double Click:** Enable Maximum PCIe power savings (`2`).
+*   **`Ctrl + Alt + Numpad3`**: Toggle AMD ZenStates **C6 Sleep State**.
+    *   **Single Click:** Enable C6 State (Calls `ZenStates_C6_Enable.ahk`).
+    *   **Double Click:** Disable C6 State (Calls `ZenStates_C6_Disabled.ahk`).
+*   **`Ctrl + Alt + Numpad4`**: **Set Max CPU Frequency**. A popup UI prompts you to enter the max frequency in MHz (Enter `0` for default unconstrained frequency).
+*   **`Ctrl + Alt + Numpad5`**: Processor Boost Mode.
+    *   **Single Click:** Disable Boost (`0`).
+    *   **Double Click:** Enable Aggressive Boost (`2`).
+
+### NVIDIA GPU Management
+*(Requires an NVIDIA GPU and `nvidia-smi.exe` in PATH)*
+
+*   **`Ctrl + Alt + Numpad7`**: Enable GPU Power Saving / Frequency Caps.
+    *   Lock Memory Clock (LMC): 400 - 5002 MHz
+    *   Lock Graphics Clock (LGC): Max 2100 MHz
+    *   Power Limit (PL): Script set to `250` (or `150W` visual cap).
+*   **`Ctrl + Alt + Numpad9`**: Uncap Performance. Removes LMC/RGC frequency limits and restores Power Limit to 325W.
+
+### Windows, Tray & Convenience Controls
+*(Some features require companion third-party tools)*
+
+*   **`Ctrl + Esc`**: Sends `Win+Ctrl+F11`. Best used with `buttery-taskbar.exe` to instantly hide/show the Windows taskbar.
+*   **`Shift + ~` (Tilde)**: Minimize the current active window (and pushes its ID to a history stack).
+*   **`Shift + Q`**: Restore the last minimized window from the history stack.
+*   **`Alt + ~` (Tilde)**: Minimize window to **System Tray** (Requires `RBTray.exe` via `Ctrl+Alt+Down`).
+*   **`Alt + Q`**: Restore window from System Tray (Requires `RBTray.exe` via `Ctrl+Alt+Up`).
+*   **`Alt + F`**: Remapped to `F11` (Fullscreen) **ONLY** when the active window is NOT `scrcpy` (Android screen mirroring).
+
+### Desktop Icon Resize Block
+*   When your mouse is hovering over the Windows Desktop background, pressing **`Ctrl + Mouse Wheel Up/Down`** will be intercepted natively. This prevents annoying accidental icon resizing, while leaving `Ctrl + Scroll` intact in browsers and code editors.
