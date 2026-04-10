@@ -244,6 +244,10 @@ SetMaxFrequency() {
     ctl := inputBox.Add("Edit", "w100 Number Limit4", "")
     inputBox.Add("Button", "Default w80", "确定").OnEvent("Click", ProcessInput)
     inputBox.OnEvent("Close", (*) => inputBox.Destroy())
+    
+    ; 支持ESC键关闭窗口
+    inputBox.OnEvent("Escape", (*) => inputBox.Destroy())
+    
     inputBox.Show()
 
     ProcessInput(*) {
