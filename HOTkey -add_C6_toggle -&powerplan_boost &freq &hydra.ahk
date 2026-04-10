@@ -1,5 +1,6 @@
 ﻿#Requires AutoHotkey v2.0
 #NoTrayIcon
+#SingleInstance Force
 
 ; -------------------------------
 ;          全局常量定义
@@ -34,7 +35,7 @@ global POWER_SETTINGS := Map(
         subgroup: "501a4d13-42af-4429-9fd1-a8218c268e20",
         setting:  "ee12f906-d277-404b-b6da-e5fa1a576df5"
     },
-    "CoreParking", {  ; 新增：Processor performance core parking min cores
+    "CoreParking", {
         subgroup: "54533251-82be-4824-96c1-47b60b740d00",
         setting:  "0cc5b647-c1df-4637-891a-dec35c318583"      
     },
@@ -42,27 +43,55 @@ global POWER_SETTINGS := Map(
         subgroup: "54533251-82be-4824-96c1-47b60b740d00",
         setting:  "be337238-0d82-4146-a960-4f3749d470c7"
     },
-    "MaxFrequency", {  ; 最大处理器频率
+    "MaxFrequency", {
         subgroup: "54533251-82be-4824-96c1-47b60b740d00",
         setting:  "75b0ae3f-bce0-45a7-8c89-c9611c25e100"
     } 
 )
 
-; 双击检测变量（原 SMT、PowerSaving 的）
-global LastSmtClick := 0, SmtClickCount := 0
-global LastPowerClick := 0, PowerClickCount := 0
+; ==================================================
+;           🔄 通用双击检测管理器
+;  干掉所有重复代码, 所有功能统一使用这一个管理器
+; ==================================================
+class DoubleClickManager {
+    static states := Map()
+    static defaultInterval := 300
 
-; 新增：组合双击检测变量，用于同时更新 SMT 与 CoreParking
-global LastCombinedClick := 0, CombinedClickCount := 0
+    static Handle(id, singleAction, doubleAction, interval := 0) {
+        interval := interval ? interval : DoubleClickManager.defaultInterval
+        
+        if (!this.states.Has(id)) {
+            this.states[id] := Map("last", 0, "count", 0)
+        }
+        state := this.states[id]
+        now := A_TickCount
 
-; 新增：ZenStates双击检测变量
-global LastNumpad3Click := 0, Numpad3ClickCount := 0  
+        if (now - state["last"] < interval) {
+            state["count"]++
+            if (state["count"] >= 2) {
+                state["count"] := 0
+                doubleAction.Call()
+                return
+            }
+        } else {
+            state["count"] := 1
+        }
+        state["last"] := now
 
-; 新增：boostmode双击检测变量
-global LastBoostClick := 0, BoostClickCount := 0
+        if (state["count"] = 1) {
+            fn := ObjBindMethod(this, "CheckSingle", id, singleAction)
+            SetTimer(fn, -interval)
+        }
+    }
 
-; ***新增：电源计划切换双击检测变量***
-global LastNumpad1Click := 0, Numpad1ClickCount := 0
+    static CheckSingle(id, action) {
+        state := this.states[id]
+        if (state["count"] = 1) {
+            state["count"] := 0
+            action.Call()
+        }
+    }
+}
 
 ; -------------------------------
 ;          热键绑定
@@ -97,39 +126,58 @@ global LastNumpad1Click := 0, Numpad1ClickCount := 0
     ShowToolTip("已切换到 Power Saver 电源策略。")
 }
 
-; Ctrl+Alt+小键盘0 热键：同时修改 SMT 与 CoreParking设置
-; 按住Ctrl+Alt键，然后按小键盘的0键，可以同时修改 SMT 与 CoreParking设置。单击操作：SMT设置为 0，CoreParking设置为 50
-; 按住Ctrl+Alt键，然后双击小键盘的0键，可以同时修改 SMT 与 CoreParking设置。双击操作：SMT设置为 2，CoreParking设置为 25
-^!Numpad0:: HandleCombinedDoubleClick(300, 0, 100, 2, 50)
+; Ctrl+Alt+Numpad0 同时控制 SMT超线程 + 核心停放
+;   ✅ 单击:  SMT=关闭 / 核心停放最低 100% (全核心工作)
+;   ✅ 双击:  SMT=打开 / 核心停放最低 50% (节能模式)
+^!Numpad0:: DoubleClickManager.Handle("Combined", 
+    (*) => ( UpdateSystemSettings("Smt", 0), UpdateSystemSettings("CoreParking", 100) ),
+    (*) => ( UpdateSystemSettings("Smt", 2), UpdateSystemSettings("CoreParking", 50) )
+)
 
-; Ctrl+Alt+小键盘2 ; 热键：全局调整系统pcie节能策略
-; 按住Ctrl+Alt键，然后按小键盘的2键，可以调整系统的节电模式。单击操作：关闭所有节电设置（设为0）
-; 按住Ctrl+Alt键，然后双击小键盘的2键，可以调整系统的节电模式。双击操作：启用最大节电模式（设为2）
-^!Numpad2:: HandleDoubleClick("PowerSaving", 300, 2, 0)  ; 节电模式
+; Ctrl+Alt+Numpad2 PCIe 电源管理
+;   ✅ 单击:  最大PCIe节电模式 (最长续航)
+;   ✅ 双击:  关闭所有PCIe节电 (最低延迟)
+^!Numpad2:: DoubleClickManager.Handle("PowerSaving", 
+    (*) => UpdateSystemSettings("PowerSaving", 2),
+    (*) => UpdateSystemSettings("PowerSaving", 0)
+)
 
-; Ctrl+Alt+小键盘3 单双击3 能切换zenstate c6状态
-^!Numpad3:: HandleZenStatesClick()  
+; Ctrl+Alt+Numpad3 AMD C6 休眠状态切换
+;   ✅ 单击:  启用 C6 休眠 (低功耗)
+;   ✅ 双击:  禁用 C6 休眠 (低延迟 / 游戏模式)
+^!Numpad3:: DoubleClickManager.Handle("ZenStates", 
+    (*) => ( Run(A_ScriptDir "\lib\ZenStates_C6_Enable.ahk"), ShowToolTip("C6状态已启用") ),
+    (*) => ( Run(A_ScriptDir "\lib\ZenStates_C6_Disabled.ahk"), ShowToolTip("C6状态已禁用") )
+)
 
-; Ctrl+Alt+小键盘5 单双击5 能切换boost状态
-^!Numpad5:: HandleDoubleClick("BoostMode", 300, 2, 0)
+; Ctrl+Alt+Numpad5 处理器加速模式
+;   ✅ 单击:  激进 Boost 模式 (最高性能)
+;   ✅ 双击:  关闭 Boost (固定频率)
+^!Numpad5:: DoubleClickManager.Handle("BoostMode", 
+    (*) => UpdateSystemSettings("BoostMode", 2),
+    (*) => UpdateSystemSettings("BoostMode", 0)
+)
 
-; 在热键绑定部分添加新热键
+; Ctrl+Alt+Numpad4 处理器最大频率
 ^!Numpad4:: SetMaxFrequency()
 
-; ***修改：Ctrl+Alt+Numpad1 实现 Balanced/Hydra 电源计划切换***
-; 单击 -> Balanced
-; 双击 -> Hydra
-^!Numpad1:: HandlePowerPlanDoubleClick(300)  ; 切换balanced hydra电源策略
+; Ctrl+Alt+Numpad1 电源计划快速切换
+;   ✅ 单击:  平衡模式 (Balanced)
+;   ✅ 双击:  Hydra 自定义性能模式
+^!Numpad1:: DoubleClickManager.Handle("PowerPlan", 
+    (*) => ( RunWait("powercfg /setactive " POWER_PLANS[1], , "Hide"), ShowToolTip("已切换到 Balanced 电源策略。") ),
+    (*) => ( RunWait("powercfg /setactive " POWER_PLANS[4], , "Hide"), ShowToolTip("已切换到 Hydra 电源策略。") )
+)
 
 ; -------------------------------
 ;           条件热键
 ; -------------------------------
-; 仅当当前窗口【不是】scrcpy 时，才将 Alt+F 映射为 F11
+; 在 scrcpy 投屏窗口内禁用 Alt+F 全屏快捷键 (避免冲突)
 #HotIf !WinActive("ahk_exe scrcpy.exe")
 !F::Send("{F11}")
 #HotIf ; 关闭判断条件，确保后续如果再添加其他热键不受影响
 
-; 当鼠标悬停在桌面 (Progman 或 WorkerW) 时生效
+; 在桌面区域拦截 Ctrl+滚轮 防止意外缩放图标
 #HotIf MouseIsOver("ahk_class Progman") or MouseIsOver("ahk_class WorkerW")
 ^WheelUp::return   ; 拦截 Ctrl + 滚轮向上
 ^WheelDown::return ; 拦截 Ctrl + 滚轮向下
@@ -160,124 +208,9 @@ RestoreMinimizedWindow() {
     }
 }
 
-; 原有的 HandleDoubleClick 用于 PowerSaving 与其他单一项的双击检测
-; 修改 HandleDoubleClick 函数
-HandleDoubleClick(type, interval, clickAction, doubleClickAction) {
-    global LastSmtClick, SmtClickCount, LastPowerClick, PowerClickCount, LastBoostClick, BoostClickCount
-    currentTime := A_TickCount
-    isDouble := false
-    
-    switch type {
-        case "Smt":
-            if (currentTime - LastSmtClick < interval) {
-                SmtClickCount++
-                if (SmtClickCount >= 2) {
-                    isDouble := true
-                    UpdateSystemSettings(type, doubleClickAction)
-                    SmtClickCount := 0
-                }
-            } else {
-                SmtClickCount := 1
-            }
-            LastSmtClick := currentTime
-            if (!isDouble) {
-                SetTimer(() => CheckSingleClick(type, clickAction), -interval)
-            }
-        
-        case "PowerSaving":
-            if (currentTime - LastPowerClick < interval) {
-                PowerClickCount++
-                if (PowerClickCount >= 2) {
-                    isDouble := true
-                    UpdateSystemSettings(type, doubleClickAction)
-                    PowerClickCount := 0
-                }
-            } else {
-                PowerClickCount := 1
-            }
-            LastPowerClick := currentTime
-            if (!isDouble) {
-                SetTimer(() => CheckSingleClick(type, clickAction), -interval)
-            }
-        
-        case "BoostMode":
-            if (currentTime - LastBoostClick < interval) {
-                BoostClickCount++
-                if (BoostClickCount >= 2) {
-                    isDouble := true
-                    UpdateSystemSettings(type, doubleClickAction)
-                    BoostClickCount := 0
-                }
-            } else {
-                BoostClickCount := 1
-            }
-            LastBoostClick := currentTime
-            if (!isDouble) {
-                SetTimer(() => CheckSingleClick(type, clickAction), -interval)
-            }
-    }
-}
-
-
-; 修改 CheckSingleClick 函数
-CheckSingleClick(type, action) {
-    global SmtClickCount, PowerClickCount, BoostClickCount
-    switch type {
-        case "Smt":
-            if (SmtClickCount = 1) {
-                UpdateSystemSettings(type, action)
-                SmtClickCount := 0
-            }
-        
-        case "PowerSaving":
-            if (PowerClickCount = 1) {
-                UpdateSystemSettings(type, action)
-                PowerClickCount := 0
-            }
-        
-        case "BoostMode":
-            if (BoostClickCount = 1) {
-                UpdateSystemSettings(type, action)
-                BoostClickCount := 0
-            }
-    }
-}
-
-
-; 新增：组合双击检测函数，同时更新 SMT 与 CoreParking
-HandleCombinedDoubleClick(interval, singleSmt, singleCore, doubleSmt, doubleCore) {
-    global LastCombinedClick, CombinedClickCount
-    currentTime := A_TickCount
-    isDouble := false
-
-    if (currentTime - LastCombinedClick < interval) {
-        CombinedClickCount++
-        if (CombinedClickCount >= 2) {
-            isDouble := true
-            UpdateSystemSettings("Smt", doubleSmt)
-            UpdateSystemSettings("CoreParking", doubleCore)
-            CombinedClickCount := 0
-        }
-    } else {
-        CombinedClickCount := 1
-    }
-    LastCombinedClick := currentTime
-    if (!isDouble) {
-        SetTimer(() => CheckCombinedSingleClick(singleSmt, singleCore), -interval)
-    }
-}
-
-CheckCombinedSingleClick(singleSmt, singleCore) {
-    global CombinedClickCount
-    if (CombinedClickCount = 1) {
-        UpdateSystemSettings("Smt", singleSmt)
-        UpdateSystemSettings("CoreParking", singleCore)
-        CombinedClickCount := 0
-    }
-}
-
-; 修改 UpdateSystemSettings 函数
 UpdateSystemSettings(type, value) {
+    static CombinedInProgress := false
+    
     currentPlan := GetActivePowerPlan()
     config := POWER_SETTINGS[type]
     
@@ -298,76 +231,17 @@ UpdateSystemSettings(type, value) {
             tooltipText := "Core Parking Min Cores " . value . "%"
         case "BoostMode":
             tooltipText := "Processor Boost Mode " . (value = 0 ? "Disabled" : (value = 1 ? "Enabled" : (value = 2 ? "Aggressive" : (value = 3 ? "Efficient Enabled" : (value = 4 ? "Efficient Aggressive" : "Unknown (" . value . ")")))))
-        ; case "MaxFrequency": ; Tooltip handled in SetMaxFrequency
-        ;     tooltipText := "Max Frequency set to " . value . " MHz"
         default:
              tooltipText := type . " set to " . value
     }
-    if (tooltipText != "") {
-        ; Add combined tooltip for Smt/CoreParking
-        if (type = "Smt" && CombinedClickCount = 0) { 
-             ; If called via combined handler and it finished, tooltip handled there
-        } else if (type = "CoreParking" && CombinedClickCount = 0) {
-            smtVal := (value = 50 ? 0 : 2) ; Infer SMT value from CoreParking double click
-            cpVal := value
-            ShowToolTip("SMT " . (smtVal = 0 ? "Disabled" : "Enabled") . "`nCore Parking Min Cores " . cpVal . "%")
-        }
-         else {
-            ShowToolTip(tooltipText)
-        }
-    }
+    ShowToolTip(tooltipText)
 }
 
-
-HandleZenStatesClick() {
-    global LastNumpad3Click, Numpad3ClickCount
-    interval := 300  ; 300毫秒双击判定间隔
-    
-    currentTime := A_TickCount
-    elapsed := currentTime - LastNumpad3Click
-    
-    ; 如果是首次点击或超过间隔时间
-    if (elapsed > interval) {
-        Numpad3ClickCount := 1
-    } else {
-        Numpad3ClickCount += 1
-    }
-    
-    LastNumpad3Click := currentTime
-    
-    if (Numpad3ClickCount = 1) {
-        ; 设置计时器等待可能的第二次点击
-        SetTimer(CheckZenStatesClicks, -interval)
-    } else if (Numpad3ClickCount = 2) {
-        ; 立即处理双击
-        HandleDoubleClickAction()
-        Numpad3ClickCount := 0  ; 重置计数器
-    }
-}
-
-CheckZenStatesClicks() {
-    global Numpad3ClickCount
-    if (Numpad3ClickCount = 1) {
-        ; 处理单击动作
-        Run(A_ScriptDir "\lib\ZenStates_C6_Enable.ahk")
-        ShowToolTip("C6状态已启用")
-        Numpad3ClickCount := 0  ; 重置计数器
-    }
-}
-
-HandleDoubleClickAction() {
-    ; 处理双击动作
-    Run(A_ScriptDir "\lib\ZenStates_C6_Disabled.ahk")
-    ShowToolTip("C6状态已禁用")
-}
-
-
-; 新增功能函数
 SetMaxFrequency() {
     ; 弹出输入框获取频率值（单位：MHz）
     inputBox := Gui("+AlwaysOnTop", "设置最大频率")
     inputBox.Add("Text",, "输入最大处理器频率 (MHz)：")
-    ctl := inputBox.Add("Edit", "w100 Number Limit4", "")  ; 修改为Limit4
+    ctl := inputBox.Add("Edit", "w100 Number Limit4", "")
     inputBox.Add("Button", "Default w80", "确定").OnEvent("Click", ProcessInput)
     inputBox.OnEvent("Close", (*) => inputBox.Destroy())
     inputBox.Show()
@@ -393,41 +267,6 @@ SetMaxFrequency() {
         ; 重新激活当前计划应用设置
         RunWait("powercfg /setactive " currentPlan, , "Hide")
         ShowToolTip("已设置最大处理器频率为：" freq " MHz`n（0表示使用默认最大值）")
-    }
-}
-
-; ***新增：电源计划切换双击处理函数***
-HandlePowerPlanDoubleClick(interval) {
-    global LastNumpad1Click, Numpad1ClickCount, POWER_PLANS
-    currentTime := A_TickCount
-    isDouble := false
-
-    if (currentTime - LastNumpad1Click < interval) {
-        Numpad1ClickCount++
-        if (Numpad1ClickCount >= 2) {
-            isDouble := true
-            ; 双击操作: 切换到 Hydra (Index 4)
-            RunWait("powercfg /setactive " POWER_PLANS[4], , "Hide")
-            ShowToolTip("已切换到 Hydra 电源策略。")
-            Numpad1ClickCount := 0
-        }
-    } else {
-        Numpad1ClickCount := 1
-    }
-    LastNumpad1Click := currentTime
-    if (!isDouble) {
-        SetTimer(CheckPowerPlanSingleClick, -interval) ; 使用负值表示只运行一次
-    }
-}
-
-; ***新增：电源计划切换单击检查函数***
-CheckPowerPlanSingleClick() {
-    global Numpad1ClickCount, POWER_PLANS
-    if (Numpad1ClickCount = 1) {
-        ; 单击操作: 切换到 Balanced (Index 1)
-        RunWait("powercfg /setactive " POWER_PLANS[1], , "Hide")
-        ShowToolTip("已切换到 Balanced 电源策略。")
-        Numpad1ClickCount := 0 ; 重置计数器
     }
 }
 

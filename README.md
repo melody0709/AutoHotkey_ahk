@@ -28,15 +28,15 @@
     *   **单击:** SMT 设置为 `0` (关闭)，Core Parking 设置为 `50%`。
     *   **双击:** SMT 设置为 `2` (开启)，Core Parking 设置为 `25%`。
 *   **`Ctrl + Alt + Numpad2`** (数字键盘 2): PCIe 链路状态电源管理。
-    *   **单击:** 关闭所有 PCIe 节电设置 (`0`)。
-    *   **双击:** 启用最大化 PCIe 节电模式 (`2`)。
+    *   **单击:** 启用最大化 PCIe 节电模式 (`2`)。
+    *   **双击:** 关闭所有 PCIe 节电设置 (`0`)。
 *   **`Ctrl + Alt + Numpad3`** (数字键盘 3): 切换 AMD ZenStates CPU **C6 睡眠状态**。
     *   **单击:** 启用 C6 状态 (调用 `ZenStates_C6_Enable.ahk`)。
     *   **双击:** 禁用 C6 状态 (调用 `ZenStates_C6_Disabled.ahk`)。
 *   **`Ctrl + Alt + Numpad4`** (数字键盘 4): **限制 CPU 最大频率**。弹出窗口输入期望的最大频率 (MHz)，输入 0 为不限制。
 *   **`Ctrl + Alt + Numpad5`** (数字键盘 5): CPU Boost (睿频) 模式。
-    *   **单击:** 关闭处理器 Boost 模式 (`0`)。
-    *   **双击:** 开启处理器 Aggressive (激进) Boost 模式 (`2`)。
+    *   **单击:** 开启处理器 Aggressive (激进) Boost 模式 (`2`)。
+    *   **双击:** 关闭处理器 Boost 模式 (`0`)。
 
 ### NVIDIA GPU 管理
 *(需要 N卡 及 nvidia-smi.exe 可用)*
@@ -44,7 +44,7 @@
 *   **`Ctrl + Alt + Numpad7`**: 开启显卡省电/频率限制模式。
     *   显存时钟 (LMC): 400 - 5002 MHz
     *   核心时钟 (LGC): 最高 2100 MHz
-    *   功耗墙 (PL): 150W (实际脚本设为 `250` 或具体配置)
+    *   功耗墙 (PL): 250W
 *   **`Ctrl + Alt + Numpad9`**: 恢复满血性能。移除 LMC / RGC 频率限制并将功耗墙 (PL) 恢复为 325W。
 
 ### 窗口、托盘与便捷控制
