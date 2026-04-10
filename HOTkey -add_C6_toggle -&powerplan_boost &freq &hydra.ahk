@@ -116,6 +116,12 @@ global LastNumpad1Click := 0, Numpad1ClickCount := 0
 !F::Send("{F11}")
 #HotIf ; 关闭判断条件，确保后续如果再添加其他热键不受影响
 
+; 当鼠标悬停在桌面 (Progman 或 WorkerW) 时生效
+#HotIf MouseIsOver("ahk_class Progman") or MouseIsOver("ahk_class WorkerW")
+^WheelUp::return   ; 拦截 Ctrl + 滚轮向上
+^WheelDown::return ; 拦截 Ctrl + 滚轮向下
+#HotIf
+
 
 ; -------------------------------
 ;          核心功能
@@ -439,4 +445,10 @@ ShowToolTip(text) {
     tooltipGui.Move(xPos, yPos)
     
     SetTimer(() => tooltipGui.Destroy(), -2000) ; Tooltip stays for 2 seconds
+}
+
+; 判断鼠标当前悬停窗口的函数
+MouseIsOver(WinTitle) {
+    MouseGetPos(,, &Win)
+    return WinExist(WinTitle " ahk_id " Win)
 }
