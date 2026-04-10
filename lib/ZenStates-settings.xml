@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AppSettings xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <CpuId>11800384</CpuId>
+  <Version>1.1</Version>
+  <IsFirstLaunchAfterBoot>true</IsFirstLaunchAfterBoot>
+  <LastBootTime>2026-04-10T10:46:49.5</LastBootTime>
+  <WindowLeft>-1</WindowLeft>
+  <WindowTop>-1</WindowTop>
+  <Zen5VoltageLimit>1.65</Zen5VoltageLimit>
+  <Zen5VoltageLimitWarning>true</Zen5VoltageLimitWarning>
+</AppSettings>

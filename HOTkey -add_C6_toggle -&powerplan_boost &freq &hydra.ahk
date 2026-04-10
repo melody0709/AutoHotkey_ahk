@@ -4,6 +4,19 @@
 ; -------------------------------
 ;          全局常量定义
 ; -------------------------------
+; ⚙️ NVIDIA 显卡配置 - 以后只要在这里改数值, Tooltip 会自动同步更新
+global NVIDIA_LIMIT := {
+    MEM_MIN:    400,    ; 显存最低 MHz
+    MEM_MAX:   5002,    ; 显存最高 MHz
+    POWER_LIM:  250,    ; 功耗限制 W
+    CORE_MIN:   200,    ; 核心最低 MHz
+    CORE_MAX:  2100     ; 核心最高 MHz
+}
+
+global NVIDIA_UNLIMIT := {
+    POWER_LIM:  325     ; 解锁后的功耗上限 W
+}
+
 global MINIMIZED_WINDOWS := []  ; 使用数组存储最小化窗口历史
 global POWER_PLANS := [
     "381b4222-f694-41f0-9685-ff5bb260df2e",  ; Balanced (Index 1)
@@ -58,25 +71,25 @@ global LastNumpad1Click := 0, Numpad1ClickCount := 0
 +`::   MinimizeActiveWindow()  ; shift+` -> 最小化当前窗口 ,win11系统自带的最小化窗口
 +Q::   RestoreMinimizedWindow() ; shift+Q -> 恢复窗口,win11系统自带的恢复窗口
 
-!`::   SendInput("^!{Down}") ; Alt+` -> 缩放到托盘,需要配合 RBTray.exet to minimize to tray 
-!Q::   SendInput("^!{Up}")   ; Alt+Q -> 从托盘还原,需要配合 RBTray.exet to minimize to tray
+!`::   SendInput("^!{Down}") ; Alt+` -> 最小化到托盘 (需要配合 RBTray.exe)
+!Q::   SendInput("^!{Up}")   ; Alt+Q -> 从托盘恢复窗口 (需要配合 RBTray.exe)
 
 
 ; ^+`:: SendInput("^+<")  ; Ctrl+Shift+` -> 替代 Ctrl+Shift+,edge侧边栏
 
 
-^!Numpad7:: {  ; 设置GPU频率和功率限制,需要配合 nvidia 卡 使用
-    RunWait("nvidia-smi -lmc 400,5002", , "Hide")  ; 设置最小和最大频率
-    RunWait("nvidia-smi -pl 250", , "Hide")        ; 设置功率限制
-    RunWait("nvidia-smi -lgc 200,2100", , "Hide")    ; 设置最高频率为 2100 MHz
-    ShowToolTip("lmc Cap Set: 400 MHz - 5002 MHz`nPower Limit Set: 150W`nMax Clock Set: 2100 MHz")
+^!Numpad7:: {  ; NVIDIA显卡: 设置功耗与频率限制
+    RunWait("nvidia-smi -lmc " NVIDIA_LIMIT.MEM_MIN "," NVIDIA_LIMIT.MEM_MAX, , "Hide")
+    RunWait("nvidia-smi -pl " NVIDIA_LIMIT.POWER_LIM, , "Hide")
+    RunWait("nvidia-smi -lgc " NVIDIA_LIMIT.CORE_MIN "," NVIDIA_LIMIT.CORE_MAX, , "Hide")
+    ShowToolTip("lmc Cap Set: " NVIDIA_LIMIT.MEM_MIN " MHz - " NVIDIA_LIMIT.MEM_MAX " MHz`nPower Limit Set: " NVIDIA_LIMIT.POWER_LIM "W`nMax Clock Set: " NVIDIA_LIMIT.CORE_MAX " MHz")
 }
 
 ^!Numpad9:: {  ; 移除GPU频率限制,需要配合 nvidia 卡 使用
     RunWait("nvidia-smi -rmc", , "Hide")
     RunWait("nvidia-smi -rgc", , "Hide")
-    RunWait("nvidia-smi -pl 325", , "Hide")
-    ShowToolTip("lmc rgc pl Cap Removed")
+    RunWait("nvidia-smi -pl " NVIDIA_UNLIMIT.POWER_LIM, , "Hide")
+    ShowToolTip("lmc rgc pl Cap Removed`nPower Limit Set: " NVIDIA_UNLIMIT.POWER_LIM "W")
 }
 
 ^!Numpad6:: {  ; Power Saver
@@ -444,7 +457,7 @@ ShowToolTip(text) {
     yPos := (A_ScreenHeight - height) // 3
     tooltipGui.Move(xPos, yPos)
     
-    SetTimer(() => tooltipGui.Destroy(), -2000) ; Tooltip stays for 2 seconds
+    SetTimer(() => tooltipGui.Destroy(), -3000) ; Tooltip 停留 3 秒
 }
 
 ; 判断鼠标当前悬停窗口的函数
