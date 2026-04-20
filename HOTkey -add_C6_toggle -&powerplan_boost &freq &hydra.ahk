@@ -49,6 +49,15 @@ global POWER_SETTINGS := Map(
     } 
 )
 
+global HAPP_MONITOR := {
+    mainProcess: "happ.exe",
+    checkIntervalMs: 360000,
+    residualPaths: Map(
+        "updater.exe", "C:\同花顺远航版\bin\UpdateWorking\updater.exe",
+        "hxdaemonprocess.exe", "C:\同花顺远航版\bin\hxdaemonprocess\hxdaemonprocess.exe"
+    )
+}
+
 ; ==================================================
 ;           🔄 通用双击检测管理器
 ;  干掉所有重复代码, 所有功能统一使用这一个管理器
@@ -92,6 +101,8 @@ class DoubleClickManager {
         }
     }
 }
+
+InitializeHappResidualMonitor()
 
 ; -------------------------------
 ;          热键绑定
@@ -301,6 +312,60 @@ ShowToolTip(text) {
     tooltipGui.Move(xPos, yPos)
     
     SetTimer(() => tooltipGui.Destroy(), -3000) ; Tooltip 停留 3 秒
+}
+
+InitializeHappResidualMonitor() {
+    global HAPP_MONITOR
+
+    CheckHappResidualProcesses()
+    SetTimer(CheckHappResidualProcesses, HAPP_MONITOR.checkIntervalMs)
+}
+
+CheckHappResidualProcesses() {
+    global HAPP_MONITOR
+
+    if ProcessExist(HAPP_MONITOR.mainProcess) {
+        return
+    }
+
+    hasPotentialResidual := false
+    for processName, _ in HAPP_MONITOR.residualPaths {
+        if ProcessExist(processName) {
+            hasPotentialResidual := true
+            break
+        }
+    }
+
+    if !hasPotentialResidual {
+        return
+    }
+
+    CleanupHappResidualProcesses()
+}
+
+CleanupHappResidualProcesses() {
+    global HAPP_MONITOR
+
+    for processName, expectedPath in HAPP_MONITOR.residualPaths {
+        normalizedExpectedPath := NormalizeProcessPath(expectedPath)
+        for processInfo in QueryProcessInfosByName(processName) {
+            executablePath := NormalizeProcessPath(processInfo.ExecutablePath)
+            if (executablePath = "" || executablePath != normalizedExpectedPath) {
+                continue
+            }
+
+            try ProcessClose(Integer(processInfo.ProcessId))
+        }
+    }
+}
+
+QueryProcessInfosByName(processName) {
+    escapedName := StrReplace(processName, "'", "''")
+    return ComObjGet("winmgmts:").ExecQuery("SELECT ProcessId, ExecutablePath FROM Win32_Process WHERE Name = '" escapedName "'")
+}
+
+NormalizeProcessPath(path) {
+    return path = "" ? "" : StrLower(StrReplace(path, "/", "\\"))
 }
 
 ; 判断鼠标当前悬停窗口的函数
