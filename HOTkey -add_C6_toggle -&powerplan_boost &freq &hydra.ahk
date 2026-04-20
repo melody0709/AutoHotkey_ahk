@@ -1,4 +1,4 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #NoTrayIcon
 #SingleInstance Force
 
@@ -372,4 +372,27 @@ NormalizeProcessPath(path) {
 MouseIsOver(WinTitle) {
     MouseGetPos(,, &Win)
     return WinExist(WinTitle " ahk_id " Win)
+}
+; -------------------------------
+;          Mac 风格 CapsLock
+; -------------------------------
+; 配置长按的时间阈值，单位为秒 (0.3 秒 = 300 毫秒)
+global tap_threshold := 0.3
+
+*CapsLock:: {
+    ; 等待 CapsLock 键被释放，或者达到超时时间
+    ; KeyWait 返回 1 表示在超时前释放（短按），返回 0 表示超时（长按）
+    if KeyWait("CapsLock", "T" tap_threshold) {
+        ; 【短按】：切换输入法
+        ; Windows 默认切换输入法是 Win + Space，所以这里发送 #{Space}
+        Send("#{Space}")
+    } else {
+        ; 【长按】：触发大小写锁定/解锁
+        ; 获取当前 CapsLock 状态并将其反转
+        currentState := GetKeyState("CapsLock", "T")
+        SetCapsLockState(currentState ? "Off" : "On")
+        
+        ; 等待按键真正物理释放，避免长按期间反复触发或闪烁
+        KeyWait("CapsLock")
+    }
 }
