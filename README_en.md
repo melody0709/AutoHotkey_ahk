@@ -10,6 +10,7 @@ This is a feature-rich, system-enhancing AutoHotkey v2 script designed for **gam
 *   🖥️ **Quick Window & Taskbar Management:** Includes native Windows 11 style window minimization with a history stack to restore them, minimize-to-tray capability (requires 3rd-party tools), and quick taskbar hiding.
 *   🛡️ **Desktop Protection:** Intercepts `Ctrl + Mouse Wheel` while hovering over the Windows Desktop to prevent accidental icon resizing.
 *   ⚡ **AMD ZenStates Support:** Toggle deep CPU C6 Sleep States with single/double clicks (relies on included local script libs).
+*   📷 **WeChat WebP Auto-Convert:** Automatically converts WebP images to JPG when pasting in WeChat, powered by FFmpeg.
 
 ## ⌨️ Shortcut Guide
 
@@ -55,3 +56,13 @@ This is a feature-rich, system-enhancing AutoHotkey v2 script designed for **gam
 
 ### Desktop Icon Resize Block
 *   When your mouse is hovering over the Windows Desktop background, pressing **`Ctrl + Mouse Wheel Up/Down`** will be intercepted natively. This prevents annoying accidental icon resizing, while leaving `Ctrl + Scroll` intact in browsers and code editors.
+
+### WeChat WebP Auto-Convert to JPG
+*(Requires FFmpeg in system PATH)*
+
+Automatically converts `.webp` images in the clipboard to `.jpg` format when pasting inside WeChat, solving WebP compatibility issues.
+
+*   **`Ctrl + V`** (WeChat window only): Automatically detects WebP images in clipboard, converts them to JPG via FFmpeg, then pastes. In all other scenarios (non-WebP files, non-WeChat windows), paste works normally without interference.
+*   **`Alt + F12`**: Toggle WebP auto-conversion on/off.
+
+**How it works:** Uses `OnClipboardChange` events to pre-cache WebP file paths from clipboard, avoiding clipboard access inside the hotkey hook which could cause timeout issues. Temporary converted files are auto-cleaned after 30 seconds.

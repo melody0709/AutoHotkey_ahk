@@ -58,6 +58,15 @@ global HAPP_MONITOR := {
     )
 }
 
+; -------------------------------
+;          webp2jpg 配置
+; -------------------------------
+global ffmpegPath := FindFFmpeg()
+global tempDir := A_Temp "\webp2jpg"
+global quality := 3          ; JPG 画质：2(最高) ~ 31(最低)
+global webp2jpgEnabled := true
+global cachedWebpFile := ""
+
 ; ==================================================
 ;           🔄 通用双击检测管理器
 ;  干掉所有重复代码, 所有功能统一使用这一个管理器
@@ -104,15 +113,28 @@ class DoubleClickManager {
 
 InitializeHappResidualMonitor()
 
+; webp2jpg 初始化
+if !DirExist(tempDir)
+    DirCreate(tempDir)
+global gdipToken := Gdip_Startup()
+OnExit((*) => (Gdip_Shutdown(gdipToken), CleanTempDir()))
+cachedWebpFile := ScanClipboardForWebp()
+OnClipboardChange(OnClipChanged, 1)
+
 ; -------------------------------
 ;          热键绑定
 ; -------------------------------
-^Esc:: SendInput("^#{F11}")  ; Ctrl+Esc -> Win+Ctrl+F11  ,需要配合 buttery-taskbar.exe 隐藏任务栏
+; ^Esc:: SendInput("^#{F11}")  ; Ctrl+Esc -> Win+Ctrl+F11  ,需要配合 buttery-taskbar.exe 隐藏任务栏
 +`::   MinimizeActiveWindow()  ; shift+` -> 最小化当前窗口 ,win11系统自带的最小化窗口
 +Q::   RestoreMinimizedWindow() ; shift+Q -> 恢复窗口,win11系统自带的恢复窗口
 
 !`::   SendInput("^!{Down}") ; Alt+` -> 最小化到托盘 (需要配合 RBTray.exe)
 !Q::   SendInput("^!{Up}")   ; Alt+Q -> 从托盘恢复窗口 (需要配合 RBTray.exe)
+!F12:: {  ; webp2jpg 开/关切换
+    global webp2jpgEnabled
+    webp2jpgEnabled := !webp2jpgEnabled
+    ShowToolTip("webp2jpg: " (webp2jpgEnabled ? "已恢复" : "已暂停"))
+}
 
 
 ; ^+`:: SendInput("^+<")  ; Ctrl+Shift+` -> 替代 Ctrl+Shift+,edge侧边栏
@@ -192,6 +214,11 @@ InitializeHappResidualMonitor()
 #HotIf MouseIsOver("ahk_class Progman") or MouseIsOver("ahk_class WorkerW")
 ^WheelUp::return   ; 拦截 Ctrl + 滚轮向上
 ^WheelDown::return ; 拦截 Ctrl + 滚轮向下
+#HotIf
+
+; 微信窗口内 Ctrl+V 自动 WebP→JPG 转换
+#HotIf WinActive("ahk_exe Weixin.exe")
+$^v::WeChatPaste()
 #HotIf
 
 
@@ -373,26 +400,190 @@ MouseIsOver(WinTitle) {
     MouseGetPos(,, &Win)
     return WinExist(WinTitle " ahk_id " Win)
 }
-; -------------------------------
-;          Mac 风格 CapsLock
-; -------------------------------
-; 配置长按的时间阈值，单位为秒 (0.3 秒 = 300 毫秒)
-global tap_threshold := 0.3
 
-*CapsLock:: {
-    ; 等待 CapsLock 键被释放，或者达到超时时间
-    ; KeyWait 返回 1 表示在超时前释放（短按），返回 0 表示超时（长按）
-    if KeyWait("CapsLock", "T" tap_threshold) {
-        ; 【短按】：切换输入法
-        ; Windows 默认切换输入法是 Win + Space，所以这里发送 #{Space}
-        Send("#{Space}")
+; -------------------------------
+;          webp2jpg 功能
+; -------------------------------
+OnClipChanged(DataType) {
+    global cachedWebpFile
+    if DataType = 0 {
+        cachedWebpFile := ""
+        return
+    }
+    SetTimer(DoClipScan, -200)
+}
+
+DoClipScan() {
+    global cachedWebpFile
+    cachedWebpFile := ScanClipboardForWebp()
+}
+
+ScanClipboardForWebp() {
+    if !DllCall("IsClipboardFormatAvailable", "UInt", 15)
+        return ""
+    files := GetClipboardFiles()
+    for f in files {
+        if SubStr(f, -5) = ".webp" && FileExist(f)
+            return f
+    }
+    return ""
+}
+
+WeChatPaste() {
+    global ffmpegPath, tempDir, quality, webp2jpgEnabled, cachedWebpFile
+    if !webp2jpgEnabled {
+        Send "^v"
+        return
+    }
+    webpFile := cachedWebpFile
+    if !webpFile || !FileExist(webpFile) {
+        webpFile := ScanClipboardForWebp()
+        cachedWebpFile := webpFile
+    }
+    if !webpFile {
+        Send "^v"
+        return
+    }
+    timestamp := FormatTime(A_Now, "yyyyMMddHHmmss")
+    jpgFile := tempDir "\" timestamp ".jpg"
+    cmd := Format('"{1}" -i "{2}" -q:v {3} "{4}" -y', ffmpegPath, webpFile, quality, jpgFile)
+    RunWait cmd,, "Hide"
+    if !FileExist(jpgFile) {
+        ShowToolTip("转码失败")
+        Send "^v"
+        return
+    }
+    if SetClipboardFile(jpgFile) {
+        ShowToolTip("转换成功")
+        Send "^v"
     } else {
-        ; 【长按】：触发大小写锁定/解锁
-        ; 获取当前 CapsLock 状态并将其反转
-        currentState := GetKeyState("CapsLock", "T")
-        SetCapsLockState(currentState ? "Off" : "On")
-        
-        ; 等待按键真正物理释放，避免长按期间反复触发或闪烁
-        KeyWait("CapsLock")
+        ShowToolTip("写入剪贴板失败")
+        Send "^v"
+    }
+    SetTimer () => CleanFile(jpgFile), -30000
+}
+
+GetClipboardFiles() {
+    files := []
+    if !DllCall("OpenClipboard", "ptr", 0, "int")
+        return files
+    hDrop := DllCall("GetClipboardData", "uint", 15, "ptr")
+    if hDrop {
+        count := DllCall("shell32\DragQueryFileW", "ptr", hDrop
+            , "uint", 0xFFFFFFFF, "ptr", 0, "uint", 0)
+        Loop count {
+            buf := Buffer(260 * 2, 0)
+            DllCall("shell32\DragQueryFileW", "ptr", hDrop
+                , "uint", A_Index - 1, "ptr", buf, "uint", 260)
+            files.Push(StrGet(buf, "UTF-16"))
+        }
+    }
+    DllCall("CloseClipboard")
+    return files
+}
+
+SetClipboardFile(filePath) {
+    pathChars := StrLen(filePath) + 1
+    pathBytes := pathChars * 2
+    dropSize := 20
+    totalSize := dropSize + pathBytes + 2
+    hGlobal := DllCall("GlobalAlloc", "uint", 0x42, "ptr", totalSize, "ptr")
+    if !hGlobal
+        return false
+    pLock := DllCall("GlobalLock", "ptr", hGlobal, "ptr")
+    if !pLock {
+        DllCall("GlobalFree", "ptr", hGlobal)
+        return false
+    }
+    NumPut("uint", dropSize, pLock, 0)
+    NumPut("int",  0, pLock, 12)
+    NumPut("int",  1, pLock, 16)
+    StrPut(filePath, pLock + dropSize, pathChars, "UTF-16")
+    DllCall("GlobalUnlock", "ptr", hGlobal)
+    if !DllCall("OpenClipboard", "ptr", 0, "int") {
+        DllCall("GlobalFree", "ptr", hGlobal)
+        return false
+    }
+    DllCall("EmptyClipboard")
+    DllCall("SetClipboardData", "uint", 15, "ptr", hGlobal)
+    DllCall("CloseClipboard")
+    return true
+}
+
+Gdip_Startup() {
+    DllCall("LoadLibrary", "str", "gdiplus", "ptr")
+    si := Buffer(24, 0)
+    NumPut("uint", 1, si, 0)
+    pToken := 0
+    DllCall("gdiplus\GdiplusStartup", "ptr*", &pToken, "ptr", si, "ptr", 0)
+    return pToken
+}
+
+Gdip_Shutdown(token) {
+    DllCall("gdiplus\GdiplusShutdown", "ptr", token)
+}
+
+FindFFmpeg() {
+    try {
+        RunWait "ffmpeg.exe -version",, "Hide"
+        return "ffmpeg.exe"
+    }
+    for path in [
+        "C:\ffmpeg\bin\ffmpeg.exe",
+        "C:\Program Files\ffmpeg\bin\ffmpeg.exe",
+        A_ProgramFiles "\ffmpeg\bin\ffmpeg.exe",
+        A_ProgramFiles "\FFmpeg\bin\ffmpeg.exe"
+    ] {
+        if FileExist(path)
+            return path
+    }
+    MsgBox(
+        "未找到 FFmpeg，请先安装：`n`n"
+        "1. 下载 https://ffmpeg.org/download.html`n"
+        "2. 解压到任意目录`n"
+        "3. 将 bin 目录添加到系统 PATH 环境变量`n`n"
+        "或直接修改脚本顶部 ffmpegPath 变量。",
+        "webp2jpg", 16
+    )
+    ExitApp()
+}
+
+CleanFile(filePath) {
+    try FileDelete(filePath)
+}
+
+CleanTempDir() {
+    global tempDir
+    try {
+        Loop Files tempDir "\*.*"
+            try FileDelete(A_LoopFilePath)
+        DirDelete(tempDir, true)
     }
 }
+
+
+
+
+; ; -------------------------------
+; ;          Mac 风格 CapsLock
+; ; -------------------------------
+; ; 配置长按的时间阈值，单位为秒 (0.3 秒 = 300 毫秒)
+; global tap_threshold := 0.3
+
+; *CapsLock:: {
+;     ; 等待 CapsLock 键被释放，或者达到超时时间
+;     ; KeyWait 返回 1 表示在超时前释放（短按），返回 0 表示超时（长按）
+;     if KeyWait("CapsLock", "T" tap_threshold) {
+;         ; 【短按】：切换输入法
+;         ; Windows 默认切换输入法是 Win + Space，所以这里发送 #{Space}
+;         Send("#{Space}")
+;     } else {
+;         ; 【长按】：触发大小写锁定/解锁
+;         ; 获取当前 CapsLock 状态并将其反转
+;         currentState := GetKeyState("CapsLock", "T")
+;         SetCapsLockState(currentState ? "Off" : "On")
+        
+;         ; 等待按键真正物理释放，避免长按期间反复触发或闪烁
+;         KeyWait("CapsLock")
+;     }
+; }
